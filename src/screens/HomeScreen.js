@@ -6,19 +6,17 @@ import {
   SafeAreaView, 
   Alert,
   Modal,
-  TextInput,
   ActivityIndicator,
   TouchableOpacity
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
-import { signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
 import { saveParkingLocation, getUserParkingLocations } from '../services/parkingService';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import CustomButton from '../components/CustomButton';
 import CustomInput from '../components/CustomInput';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen({ navigation }) {
   const mapRef = useRef(null);
@@ -28,6 +26,16 @@ export default function HomeScreen({ navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [description, setDescription] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [region, setRegion] = useState(null);
+
+  const loadLocations = async () => {
+    try {
+      const savedLocations = await getUserParkingLocations();
+      setParkingLocations(savedLocations);
+    } catch (error) {
+      console.error('Error loading locations:', error);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -39,10 +47,17 @@ export default function HomeScreen({ navigation }) {
         }
 
         let currentLocation = await Location.getCurrentPositionAsync({});
+        const initialRegion = {
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
         setLocation(currentLocation.coords);
+        setRegion(initialRegion);
+        setSelectedLocation(initialRegion);
 
-        const savedLocations = await getUserParkingLocations();
-        setParkingLocations(savedLocations);
+        await loadLocations();
       } catch (error) {
         Alert.alert('Error', 'Failed to load location data');
       } finally {
@@ -51,15 +66,24 @@ export default function HomeScreen({ navigation }) {
     })();
   }, []);
 
-  const handleMapPress = (event) => {
-    setSelectedLocation(event.nativeEvent.coordinate);
+  // Her ekran odaklandığında konumları güncelle
+  useFocusEffect(
+    React.useCallback(() => {
+      loadLocations();
+    }, [])
+  );
+
+  const handleRegionChange = (newRegion) => {
+    setRegion(newRegion);
+    setSelectedLocation({
+      latitude: newRegion.latitude,
+      longitude: newRegion.longitude,
+    });
   };
 
   const handleAddLocation = () => {
     if (selectedLocation) {
       setShowModal(true);
-    } else {
-      Alert.alert('Select Location', 'Please select a location on the map first');
     }
   };
 
@@ -75,7 +99,6 @@ export default function HomeScreen({ navigation }) {
       setParkingLocations(updatedLocations);
       setShowModal(false);
       setDescription('');
-      setSelectedLocation(null);
       Alert.alert('Success', 'Parking location saved successfully!');
     } catch (error) {
       Alert.alert('Error', 'Failed to save parking location');
@@ -85,12 +108,18 @@ export default function HomeScreen({ navigation }) {
   const centerToCurrentLocation = async () => {
     try {
       let currentLocation = await Location.getCurrentPositionAsync({});
-      mapRef.current?.animateToRegion({
+      const newRegion = {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
-      }, 1000);
+      };
+      mapRef.current?.animateToRegion(newRegion, 1000);
+      setLocation(currentLocation.coords);
+      setSelectedLocation({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      });
     } catch (error) {
       Alert.alert('Error', 'Failed to get current location');
     }
@@ -115,16 +144,19 @@ export default function HomeScreen({ navigation }) {
           <MapView
             ref={mapRef}
             style={styles.map}
-            initialRegion={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }}
-            onPress={handleMapPress}
-            showsUserLocation={true}
-            showsMyLocationButton={false}
+            initialRegion={region}
+            onRegionChange={handleRegionChange}
           >
+            {/* Current location marker */}
+            <Marker
+              coordinate={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+              }}
+              title="Your Location"
+              pinColor={COLORS.primary}
+            />
+
             {/* Saved parking locations */}
             {parkingLocations.map((parking) => (
               <Marker
@@ -137,16 +169,12 @@ export default function HomeScreen({ navigation }) {
                 description="Saved Parking Location"
               />
             ))}
-
-            {/* Selected location marker */}
-            {selectedLocation && (
-              <Marker
-                coordinate={selectedLocation}
-                title="Selected Location"
-                description="New parking location"
-              />
-            )}
           </MapView>
+
+          {/* Center marker overlay */}
+          <View style={styles.markerFixed}>
+            <Ionicons name="location" size={40} color={COLORS.error} />
+          </View>
 
           {/* Map Controls */}
           <View style={styles.mapControls}>
@@ -241,6 +269,13 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  markerFixed: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    marginLeft: -20,
+    marginTop: -40,
   },
   mapControls: {
     position: 'absolute',

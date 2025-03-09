@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getUserParkingLocations, deleteParkingLocation } from '../services/parkingService';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function SavedLocationsScreen() {
   const [locations, setLocations] = useState([]);
@@ -32,6 +33,12 @@ export default function SavedLocationsScreen() {
       setIsLoading(false);
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadLocations();
+    }, [])
+  );
 
   const handleDelete = (locationId) => {
     Alert.alert(
