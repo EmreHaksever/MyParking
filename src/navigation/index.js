@@ -9,11 +9,14 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SavedLocationsScreen from '../screens/SavedLocationsScreen';
 import { COLORS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
+  const { isDarkMode } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -31,8 +34,15 @@ const TabNavigator = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.text.secondary,
+        tabBarActiveTintColor: isDarkMode ? COLORS.white : COLORS.primary,
+        tabBarInactiveTintColor: isDarkMode ? '#a0a0a0' : COLORS.text.secondary,
+        tabBarStyle: {
+          backgroundColor: isDarkMode ? '#1a1a1a' : COLORS.white,
+          borderTopColor: isDarkMode ? '#2a2a2a' : COLORS.shadow,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+        },
       })}
     >
       <Tab.Screen 
