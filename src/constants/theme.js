@@ -1,39 +1,47 @@
 export const COLORS = {
-  primary: '#3498db',
-  secondary: '#2c3e50',
-  background: '#f5f7fa',
-  white: '#ffffff',
+  primary: '#2196F3',
+  primaryLight: '#64B5F6',
+  primaryDark: '#1976D2',
+  secondary: '#4CAF50',
+  secondaryLight: 'rgba(76, 175, 80, 0.1)',
+  background: '#F5F7FA',
+  white: '#FFFFFF',
   inputBackground: '#f8f9fa',
   inputBorder: '#e1e8ed',
-  error: '#ff3b30',
   text: {
-    primary: '#2c3e50',
-    secondary: '#34495e',
-    white: '#ffffff'
-  }
+    primary: '#1A1A1A',
+    secondary: '#757575',
+    light: '#FFFFFF'
+  },
+  success: '#4CAF50',
+  error: '#F44336',
+  warning: '#FFC107',
+  shadow: 'rgba(0, 0, 0, 0.1)'
 };
 
 export const FONTS = {
   sizes: {
-    title: 40,
-    subtitle: 28,
-    regular: 18,
-    small: 16
+    small: 12,
+    regular: 14,
+    medium: 16,
+    subtitle: 20,
+    title: 24,
+    large: 32
   },
   weights: {
-    bold: 'bold',
-    semiBold: '600',
+    regular: '400',
     medium: '500',
-    regular: '400'
+    semiBold: '600',
+    bold: '700'
   }
 };
 
 export const SPACING = {
   small: 8,
   medium: 16,
-  large: 20,
-  xlarge: 30,
-  xxlarge: 40
+  large: 24,
+  xlarge: 32,
+  xxlarge: 48
 };
 
 export const SHADOWS = {

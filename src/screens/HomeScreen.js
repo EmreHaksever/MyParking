@@ -107,7 +107,11 @@ export default function HomeScreen({ navigation }) {
 
   const centerToCurrentLocation = async () => {
     try {
-      let currentLocation = await Location.getCurrentPositionAsync({});
+      let currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        maxAge: 10000,
+        timeout: 5000
+      });
       const newRegion = {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
@@ -154,8 +158,11 @@ export default function HomeScreen({ navigation }) {
                 longitude: location.longitude,
               }}
               title="Your Location"
-              pinColor={COLORS.primary}
-            />
+            >
+              <View style={styles.markerContainer}>
+                <Ionicons name="car" size={30} color={COLORS.primary} />
+              </View>
+            </Marker>
 
             {/* Saved parking locations */}
             {parkingLocations.map((parking) => (
@@ -167,13 +174,17 @@ export default function HomeScreen({ navigation }) {
                 }}
                 title={parking.description}
                 description="Saved Parking Location"
-              />
+              >
+                <View style={styles.markerContainer}>
+                  <Ionicons name="car" size={30} color={COLORS.error} />
+                </View>
+              </Marker>
             ))}
           </MapView>
 
           {/* Center marker overlay */}
           <View style={styles.markerFixed}>
-            <Ionicons name="location" size={40} color={COLORS.error} />
+            <Ionicons name="car" size={40} color={COLORS.primary} />
           </View>
 
           {/* Map Controls */}
@@ -329,5 +340,10 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginBottom: SPACING.small,
+  },
+  markerContainer: {
+    padding: 5,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
   },
 }); 

@@ -1,47 +1,87 @@
-import React from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
-import { COLORS, FONTS } from '../constants/theme';
+import React, { useState } from 'react';
+import { TextInput, StyleSheet, Animated } from 'react-native';
+import { COLORS, FONTS, SPACING } from '../constants/theme';
 
-export const CustomInput = ({ 
-  value, 
-  onChangeText, 
-  placeholder,
-  secureTextEntry,
-  keyboardType,
-  autoCapitalize = 'none',
-  style
-}) => {
+export default function CustomInput({ style, ...props }) {
+  const [focused, setFocused] = useState(false);
+  const [animation] = useState(new Animated.Value(0));
+
+  const handleFocus = () => {
+    setFocused(true);
+    Animated.spring(animation, {
+      toValue: 1,
+      useNativeDriver: false,
+      friction: 8,
+      tension: 40,
+    }).start();
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    Animated.spring(animation, {
+      toValue: 0,
+      useNativeDriver: false,
+      friction: 8,
+      tension: 40,
+    }).start();
+  };
+
+  const animatedStyle = {
+    transform: [{
+      scale: animation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 1.02]
+      })
+    }],
+    borderColor: animation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [COLORS.shadow, COLORS.primary]
+    }),
+    shadowOpacity: animation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.1, 0.25]
+    }),
+    backgroundColor: animation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [COLORS.white, COLORS.background]
+    })
+  };
+
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.inputWrapper, animatedStyle]}>
       <TextInput
         style={[styles.input, style]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
         placeholderTextColor={COLORS.text.secondary}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        selectionColor={COLORS.primary}
+        {...props}
       />
-    </View>
+    </Animated.View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
+  inputWrapper: {
     width: '100%',
-    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: SPACING.medium,
+    shadowColor: COLORS.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
   },
   input: {
-    backgroundColor: COLORS.inputBackground,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 12,
-    padding: 18,
+    width: '100%',
+    paddingHorizontal: SPACING.large,
+    paddingVertical: SPACING.medium,
     fontSize: FONTS.sizes.regular,
     color: COLORS.text.primary,
-    width: '100%',
-  }
-});
-
-export default CustomInput; 
+    fontFamily: 'System',
+  },
+}); 
