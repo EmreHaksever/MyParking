@@ -13,7 +13,7 @@ import {
   LinearGradient
 } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { auth, saveUserData } from '../services/firebase';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
@@ -28,6 +28,8 @@ export default function LoginScreen({ navigation }) {
   const [isLogin, setIsLogin] = useState(true);
   const [animation] = useState(new Animated.Value(1));
   const [showPassword, setShowPassword] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   
   // Yeni animasyon değerleri
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -66,7 +68,12 @@ export default function LoginScreen({ navigation }) {
 
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (!isLogin && (!firstName || !lastName)) {
+      Alert.alert('Error', 'Please fill in your first and last name');
       return;
     }
 
@@ -90,12 +97,34 @@ export default function LoginScreen({ navigation }) {
         console.log('Login successful:', userCredential.user.email);
         navigation.replace('Home');
       } else {
+        // Register new user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        
+        try {
+          // Save additional user data to Firestore
+          await saveUserData(userCredential.user.uid, {
+            firstName,
+            lastName,
+            email,
+            displayName: `${firstName} ${lastName}`,
+          });
+        } catch (firestoreError) {
+          console.error('Firestore error:', firestoreError);
+          // Kullanıcı oluşturuldu ama Firestore'a kayıt başarısız oldu
+          // Yine de Home ekranına yönlendir
+        }
+
         console.log('Registration successful:', userCredential.user.email);
         navigation.replace('Home');
       }
     } catch (error) {
-      Alert.alert('Error', error.message);
+      console.error('Auth error:', error);
+      Alert.alert(
+        'Error',
+        error.code === 'auth/email-already-in-use'
+          ? 'This email is already registered. Please try logging in.'
+          : error.message
+      );
     }
   };
 
@@ -169,11 +198,29 @@ export default function LoginScreen({ navigation }) {
             </Text>
             
             <View style={styles.inputContainer}>
+              {!isLogin && (
+                <>
+                  <CustomInput
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    placeholder="First Name"
+                    autoCapitalize="words"
+                  />
+                  <CustomInput
+                    value={lastName}
+                    onChangeText={setLastName}
+                    placeholder="Last Name"
+                    autoCapitalize="words"
+                  />
+                </>
+              )}
+              
               <CustomInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Email"
                 keyboardType="email-address"
+                autoCapitalize="none"
               />
               
               <View style={styles.passwordContainer}>

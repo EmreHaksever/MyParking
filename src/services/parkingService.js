@@ -1,17 +1,23 @@
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 
-const PARKING_COLLECTION = 'parking_locations';
+const PARKING_COLLECTION = 'parkingLocations';
 
 export const saveParkingLocation = async (location, description) => {
   try {
-    const docRef = await addDoc(collection(db, PARKING_COLLECTION), {
-      userId: auth.currentUser.uid,
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('User not authenticated');
+
+    const parkingData = {
+      userId,
       latitude: location.latitude,
       longitude: location.longitude,
       description,
-      timestamp: new Date().toISOString(),
-    });
+      createdAt: new Date().toISOString()
+    };
+
+    const docRef = await addDoc(collection(db, PARKING_COLLECTION), parkingData);
+    console.log('Parking location saved successfully:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error saving parking location:', error);
@@ -21,21 +27,23 @@ export const saveParkingLocation = async (location, description) => {
 
 export const getUserParkingLocations = async () => {
   try {
-    const q = query(
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('User not authenticated');
+
+    console.log('Fetching parking locations for user:', userId);
+
+    const parkingQuery = query(
       collection(db, PARKING_COLLECTION),
-      where('userId', '==', auth.currentUser.uid)
+      where('userId', '==', userId)
     );
-    
-    const querySnapshot = await getDocs(q);
-    const locations = [];
-    
-    querySnapshot.forEach((doc) => {
-      locations.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
+
+    const querySnapshot = await getDocs(parkingQuery);
+    const locations = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    console.log('Found parking locations:', locations.length);
     return locations;
   } catch (error) {
     console.error('Error getting parking locations:', error);
@@ -45,7 +53,12 @@ export const getUserParkingLocations = async () => {
 
 export const deleteParkingLocation = async (locationId) => {
   try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('User not authenticated');
+
+    console.log('Deleting parking location:', locationId);
     await deleteDoc(doc(db, PARKING_COLLECTION, locationId));
+    console.log('Parking location deleted successfully');
   } catch (error) {
     console.error('Error deleting parking location:', error);
     throw error;
