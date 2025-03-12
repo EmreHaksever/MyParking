@@ -17,6 +17,7 @@ import { COLORS, FONTS, SPACING } from '../constants/theme';
 import CustomButton from '../components/CustomButton';
 import CustomInput from '../components/CustomInput';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 export default function HomeScreen({ navigation }) {
   const mapRef = useRef(null);
@@ -27,6 +28,7 @@ export default function HomeScreen({ navigation }) {
   const [description, setDescription] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [region, setRegion] = useState(null);
+  const { isDarkMode } = useTheme();
 
   const loadLocations = async () => {
     try {
@@ -131,16 +133,16 @@ export default function HomeScreen({ navigation }) {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, isDarkMode && styles.darkContainer]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>MyParking</Text>
+    <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+      <View style={[styles.header, isDarkMode && styles.darkHeader]}>
+        <Text style={[styles.title, isDarkMode && styles.darkText]}>MyParking</Text>
       </View>
 
       {location && (
@@ -150,6 +152,7 @@ export default function HomeScreen({ navigation }) {
             style={styles.map}
             initialRegion={region}
             onRegionChange={handleRegionChange}
+            customMapStyle={isDarkMode ? darkMapStyle : []}
           >
             {/* Current location marker */}
             <Marker
@@ -159,7 +162,7 @@ export default function HomeScreen({ navigation }) {
               }}
               title="Your Location"
             >
-              <View style={styles.markerContainer}>
+              <View style={[styles.markerContainer, isDarkMode && styles.darkMarkerContainer]}>
                 <Ionicons name="car" size={30} color={COLORS.primary} />
               </View>
             </Marker>
@@ -175,7 +178,7 @@ export default function HomeScreen({ navigation }) {
                 title={parking.description}
                 description="Saved Parking Location"
               >
-                <View style={styles.markerContainer}>
+                <View style={[styles.markerContainer, isDarkMode && styles.darkMarkerContainer]}>
                   <Ionicons name="car" size={30} color={COLORS.error} />
                 </View>
               </Marker>
@@ -190,17 +193,17 @@ export default function HomeScreen({ navigation }) {
           {/* Map Controls */}
           <View style={styles.mapControls}>
             <TouchableOpacity 
-              style={styles.mapButton}
+              style={[styles.mapButton, isDarkMode && styles.darkMapButton]}
               onPress={centerToCurrentLocation}
             >
-              <Ionicons name="locate" size={24} color={COLORS.primary} />
+              <Ionicons name="locate" size={24} color={isDarkMode ? COLORS.white : COLORS.primary} />
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.mapButton}
+              style={[styles.mapButton, isDarkMode && styles.darkMapButton]}
               onPress={handleAddLocation}
             >
-              <Ionicons name="add-circle" size={24} color={COLORS.primary} />
+              <Ionicons name="add-circle" size={24} color={isDarkMode ? COLORS.white : COLORS.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -212,8 +215,10 @@ export default function HomeScreen({ navigation }) {
         animationType="slide"
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Save Parking Location</Text>
+          <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
+            <Text style={[styles.modalTitle, isDarkMode && styles.darkText]}>
+              Save Parking Location
+            </Text>
             
             <CustomInput
               value={description}
@@ -234,7 +239,7 @@ export default function HomeScreen({ navigation }) {
                   setShowModal(false);
                   setDescription('');
                 }}
-                variant="secondary"
+                type="secondary"
               />
             </View>
           </View>
@@ -244,10 +249,103 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+const darkMapStyle = [
+  {
+    elementType: 'geometry',
+    stylers: [{ color: '#242f3e' }],
+  },
+  {
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#746855' }],
+  },
+  {
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#242f3e' }],
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ color: '#263c3f' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#6b9a76' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#38414e' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#212a37' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9ca5b3' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#746855' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#1f2835' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#f3d19c' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'geometry',
+    stylers: [{ color: '#2f3948' }],
+  },
+  {
+    featureType: 'transit.station',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#17263c' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#515c6d' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#17263c' }],
+  },
+];
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  darkContainer: {
+    backgroundColor: '#1a1a1a',
   },
   loadingContainer: {
     flex: 1,
@@ -269,10 +367,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
+  darkHeader: {
+    backgroundColor: '#2a2a2a',
+  },
   title: {
     fontSize: FONTS.sizes.subtitle,
     fontWeight: FONTS.weights.bold,
     color: COLORS.text.primary,
+  },
+  darkText: {
+    color: COLORS.white,
   },
   mapContainer: {
     flex: 1,
@@ -307,6 +411,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  darkMapButton: {
+    backgroundColor: '#2a2a2a',
+  },
+  markerContainer: {
+    padding: 5,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  darkMarkerContainer: {
+    backgroundColor: 'rgba(42, 42, 42, 0.8)',
+  },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -328,6 +443,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+  darkModalContent: {
+    backgroundColor: '#2a2a2a',
+  },
   modalTitle: {
     fontSize: FONTS.sizes.subtitle,
     fontWeight: FONTS.weights.semiBold,
@@ -340,10 +458,5 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginBottom: SPACING.small,
-  },
-  markerContainer: {
-    padding: 5,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
   },
 }); 

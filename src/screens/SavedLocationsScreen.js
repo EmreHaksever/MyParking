@@ -14,10 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { getUserParkingLocations, deleteParkingLocation } from '../services/parkingService';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SavedLocationsScreen() {
   const [locations, setLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     loadLocations();
@@ -55,7 +57,7 @@ export default function SavedLocationsScreen() {
           onPress: async () => {
             try {
               await deleteParkingLocation(locationId);
-              await loadLocations(); // Reload the list
+              await loadLocations();
               Alert.alert('Success', 'Location deleted successfully');
             } catch (error) {
               Alert.alert('Error', 'Failed to delete location');
@@ -84,29 +86,31 @@ export default function SavedLocationsScreen() {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.locationItem}>
+    <View style={[styles.locationItem, isDarkMode && styles.darkLocationItem]}>
       <TouchableOpacity 
         style={styles.locationContent}
         onPress={() => openMapsNavigation(item.latitude, item.longitude, item.description)}
       >
         <View style={styles.locationInfo}>
-          <Text style={styles.locationDescription}>{item.description}</Text>
-          <Text style={styles.locationDetails}>
+          <Text style={[styles.locationDescription, isDarkMode && styles.darkText]}>
+            {item.description}
+          </Text>
+          <Text style={[styles.locationDetails, isDarkMode && styles.darkSecondaryText]}>
             Lat: {item.latitude.toFixed(6)}, Long: {item.longitude.toFixed(6)}
           </Text>
-          <Text style={styles.timestamp}>
+          <Text style={[styles.timestamp, isDarkMode && styles.darkSecondaryText]}>
             {new Date(item.timestamp).toLocaleString()}
           </Text>
         </View>
         <View style={styles.locationActions}>
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[styles.actionButton, isDarkMode && styles.darkActionButton]}
             onPress={() => openMapsNavigation(item.latitude, item.longitude, item.description)}
           >
             <Ionicons name="navigate" size={24} color={COLORS.primary} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[styles.actionButton, isDarkMode && styles.darkActionButton]}
             onPress={() => handleDelete(item.id)}
           >
             <Ionicons name="trash-outline" size={24} color={COLORS.error} />
@@ -117,9 +121,9 @@ export default function SavedLocationsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Saved Locations</Text>
+    <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+      <View style={[styles.header, isDarkMode && styles.darkHeader]}>
+        <Text style={[styles.title, isDarkMode && styles.darkText]}>Saved Locations</Text>
       </View>
 
       <FlatList
@@ -129,7 +133,7 @@ export default function SavedLocationsScreen() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           !isLoading && (
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, isDarkMode && styles.darkSecondaryText]}>
               No saved locations yet
             </Text>
           )
@@ -144,6 +148,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  darkContainer: {
+    backgroundColor: '#1a1a1a',
+  },
   header: {
     padding: SPACING.large,
     backgroundColor: COLORS.white,
@@ -156,10 +163,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  darkHeader: {
+    backgroundColor: '#2a2a2a',
+    shadowColor: '#000',
+  },
   title: {
     fontSize: FONTS.sizes.subtitle,
     fontWeight: FONTS.weights.bold,
     color: COLORS.text.primary,
+  },
+  darkText: {
+    color: COLORS.white,
   },
   listContent: {
     padding: SPACING.medium,
@@ -176,6 +190,9 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+  darkLocationItem: {
+    backgroundColor: '#2a2a2a',
   },
   locationContent: {
     flexDirection: 'row',
@@ -202,11 +219,20 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     fontStyle: 'italic',
   },
+  darkSecondaryText: {
+    color: '#a0a0a0',
+  },
   locationActions: {
     justifyContent: 'space-around',
   },
   actionButton: {
     padding: SPACING.small,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    marginBottom: SPACING.small,
+  },
+  darkActionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   emptyText: {
     textAlign: 'center',
