@@ -3,7 +3,7 @@ import { db, auth } from './firebase';
 
 const PARKING_COLLECTION = 'parkingLocations';
 
-export const saveParkingLocation = async (location, description) => {
+export const saveParkingLocation = async (location, description, isPaid, freeMinutes = 0) => {
   try {
     const userId = auth.currentUser?.uid;
     if (!userId) throw new Error('User not authenticated');
@@ -13,7 +13,9 @@ export const saveParkingLocation = async (location, description) => {
       latitude: location.latitude,
       longitude: location.longitude,
       description,
-      createdAt: new Date().toISOString()
+      isPaid,
+      freeMinutes: isPaid ? freeMinutes : 0,
+      createdAt: Date.now()
     };
 
     const docRef = await addDoc(collection(db, PARKING_COLLECTION), parkingData);

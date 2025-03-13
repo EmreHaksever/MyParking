@@ -7,12 +7,14 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
-  TouchableOpacity
+  TouchableOpacity,
+  Platform
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { saveParkingLocation, getUserParkingLocations } from '../services/parkingService';
+import { scheduleParkingNotification } from '../services/notificationService';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import CustomButton from '../components/CustomButton';
 import CustomInput from '../components/CustomInput';
@@ -26,6 +28,8 @@ export default function HomeScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [description, setDescription] = useState('');
+  const [isPaid, setIsPaid] = useState(false);
+  const [freeMinutes, setFreeMinutes] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [region, setRegion] = useState(null);
   const { isDarkMode } = useTheme();
@@ -42,26 +46,75 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       try {
+        setIsLoading(true);
+        
+        // Önce varsayılan bir konum ayarlayalım (İstanbul merkez)
+        const defaultRegion = {
+          latitude: 41.0082,
+          longitude: 28.9784,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        };
+        setRegion(defaultRegion);
+        setSelectedLocation(defaultRegion);
+
+        // Konum izinlerini kontrol edelim
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission denied', 'Location permission is required.');
+          Alert.alert(
+            'Konum İzni',
+            'Haritada konumunuzu göstermek için izin gerekli. Harita yine de çalışacak ama konumunuz gösterilmeyecek.',
+            [{ text: 'Tamam' }]
+          );
+          await loadLocations();
+          setIsLoading(false);
           return;
         }
 
-        let currentLocation = await Location.getCurrentPositionAsync({});
-        const initialRegion = {
-          latitude: currentLocation.coords.latitude,
-          longitude: currentLocation.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        };
-        setLocation(currentLocation.coords);
-        setRegion(initialRegion);
-        setSelectedLocation(initialRegion);
+        try {
+          // Mevcut konumu almaya çalışalım
+          const locationOptions = {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 0,
+            mayShowUserSettingsDialog: false // Android için önemli
+          };
 
+          const currentLocation = await Location.getCurrentPositionAsync(locationOptions)
+            .catch(async () => {
+              // Yüksek hassasiyetli konum alınamadıysa, düşük hassasiyetli deneyelim
+              console.log('Retrying with low accuracy...');
+              return await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Low,
+                timeInterval: 10000
+              });
+            });
+
+          if (currentLocation) {
+            const initialRegion = {
+              latitude: currentLocation.coords.latitude,
+              longitude: currentLocation.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            };
+            setLocation(currentLocation.coords);
+            setRegion(initialRegion);
+            setSelectedLocation(initialRegion);
+          }
+        } catch (locationError) {
+          console.warn('Location fetch failed:', locationError);
+          // Konum alınamasa bile harita varsayılan konumla çalışmaya devam edecek
+        }
+
+        // Park yerlerini yükleyelim
         await loadLocations();
       } catch (error) {
-        Alert.alert('Error', 'Failed to load location data');
+        console.error('Map loading error:', error);
+        Alert.alert(
+          'Harita Yükleme Hatası',
+          'Harita yüklenirken bir sorun oluştu. Lütfen internet bağlantınızı kontrol edin.',
+          [{ text: 'Tamam' }]
+        );
       } finally {
         setIsLoading(false);
       }
@@ -91,19 +144,39 @@ export default function HomeScreen({ navigation }) {
 
   const handleSaveLocation = async () => {
     if (!selectedLocation || !description) {
-      Alert.alert('Error', 'Please provide a description for the location');
+      Alert.alert('Hata', 'Lütfen konum için bir açıklama girin');
+      return;
+    }
+
+    if (isPaid && !freeMinutes) {
+      Alert.alert('Hata', 'Lütfen ücretsiz dakika süresini girin');
+      return;
+    }
+
+    const minutes = parseInt(freeMinutes);
+
+    if (isPaid && minutes <= 5) {
+      Alert.alert('Hata', 'Ücretsiz süre en az 6 dakika olmalıdır');
       return;
     }
 
     try {
-      await saveParkingLocation(selectedLocation, description);
+      const locationId = await saveParkingLocation(selectedLocation, description, isPaid, minutes);
+      
+      // Ücretli park yeri için bildirim planla
+      if (isPaid && minutes > 5) {
+        await scheduleParkingNotification(locationId, description, minutes);
+      }
+
       const updatedLocations = await getUserParkingLocations();
       setParkingLocations(updatedLocations);
       setShowModal(false);
       setDescription('');
-      Alert.alert('Success', 'Parking location saved successfully!');
+      setIsPaid(false);
+      setFreeMinutes('');
+      Alert.alert('Başarılı', 'Park yeri başarıyla kaydedildi!');
     } catch (error) {
-      Alert.alert('Error', 'Failed to save parking location');
+      Alert.alert('Hata', 'Park yeri kaydedilirken bir hata oluştu');
     }
   };
 
@@ -145,16 +218,19 @@ export default function HomeScreen({ navigation }) {
         <Text style={[styles.title, isDarkMode && styles.darkText]}>MyParking</Text>
       </View>
 
-      {location && (
-        <View style={styles.mapContainer}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            initialRegion={region}
-            onRegionChange={handleRegionChange}
-            customMapStyle={isDarkMode ? darkMapStyle : []}
-          >
-            {/* Current location marker */}
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={Platform.select({
+            ios: undefined, // iOS'ta Apple Maps kullan
+            android: PROVIDER_GOOGLE // Android'de Google Maps kullan
+          })}
+          initialRegion={region}
+          onRegionChange={handleRegionChange}
+          customMapStyle={isDarkMode ? darkMapStyle : []}
+        >
+          {location && (
             <Marker
               coordinate={{
                 latitude: location.latitude,
@@ -166,48 +242,47 @@ export default function HomeScreen({ navigation }) {
                 <Ionicons name="car" size={30} color={COLORS.primary} />
               </View>
             </Marker>
+          )}
 
-            {/* Saved parking locations */}
-            {parkingLocations.map((parking) => (
-              <Marker
-                key={parking.id}
-                coordinate={{
-                  latitude: parking.latitude,
-                  longitude: parking.longitude,
-                }}
-                title={parking.description}
-                description="Saved Parking Location"
-              >
-                <View style={[styles.markerContainer, isDarkMode && styles.darkMarkerContainer]}>
-                  <Ionicons name="car" size={30} color={COLORS.error} />
-                </View>
-              </Marker>
-            ))}
-          </MapView>
-
-          {/* Center marker overlay */}
-          <View style={styles.markerFixed}>
-            <Ionicons name="car" size={40} color={COLORS.primary} />
-          </View>
-
-          {/* Map Controls */}
-          <View style={styles.mapControls}>
-            <TouchableOpacity 
-              style={[styles.mapButton, isDarkMode && styles.darkMapButton]}
-              onPress={centerToCurrentLocation}
+          {parkingLocations.map((parking) => (
+            <Marker
+              key={parking.id}
+              coordinate={{
+                latitude: parking.latitude,
+                longitude: parking.longitude,
+              }}
+              title={parking.description}
+              description="Saved Parking Location"
             >
-              <Ionicons name="locate" size={24} color={isDarkMode ? COLORS.white : COLORS.primary} />
-            </TouchableOpacity>
+              <View style={[styles.markerContainer, isDarkMode && styles.darkMarkerContainer]}>
+                <Ionicons name="car" size={30} color={COLORS.error} />
+              </View>
+            </Marker>
+          ))}
+        </MapView>
 
-            <TouchableOpacity 
-              style={[styles.mapButton, isDarkMode && styles.darkMapButton]}
-              onPress={handleAddLocation}
-            >
-              <Ionicons name="add-circle" size={24} color={isDarkMode ? COLORS.white : COLORS.primary} />
-            </TouchableOpacity>
-          </View>
+        {/* Center marker overlay */}
+        <View style={styles.markerFixed}>
+          <Ionicons name="car" size={40} color={COLORS.primary} />
         </View>
-      )}
+
+        {/* Map Controls */}
+        <View style={styles.mapControls}>
+          <TouchableOpacity 
+            style={[styles.mapButton, isDarkMode && styles.darkMapButton]}
+            onPress={centerToCurrentLocation}
+          >
+            <Ionicons name="locate" size={24} color={isDarkMode ? COLORS.white : COLORS.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.mapButton, isDarkMode && styles.darkMapButton]}
+            onPress={handleAddLocation}
+          >
+            <Ionicons name="add-circle" size={24} color={isDarkMode ? COLORS.white : COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <Modal
         visible={showModal}
@@ -227,6 +302,42 @@ export default function HomeScreen({ navigation }) {
               style={styles.input}
             />
 
+            <View style={styles.parkingTypeContainer}>
+              <Text style={[styles.label, isDarkMode && styles.darkText]}>Parking Type:</Text>
+              <View style={styles.radioContainer}>
+                <TouchableOpacity 
+                  style={styles.radioButton} 
+                  onPress={() => {
+                    setIsPaid(false);
+                    setFreeMinutes('');
+                  }}
+                >
+                  <View style={[styles.radio, !isPaid && styles.radioSelected]} />
+                  <Text style={[styles.radioText, isDarkMode && styles.darkText]}>Free</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.radioButton} 
+                  onPress={() => setIsPaid(true)}
+                >
+                  <View style={[styles.radio, isPaid && styles.radioSelected]} />
+                  <Text style={[styles.radioText, isDarkMode && styles.darkText]}>Paid</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {isPaid && (
+              <View style={styles.freeMinutesContainer}>
+                <Text style={[styles.label, isDarkMode && styles.darkText]}>Free Minutes:</Text>
+                <CustomInput
+                  value={freeMinutes}
+                  onChangeText={setFreeMinutes}
+                  placeholder="Enter free minutes"
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              </View>
+            )}
+
             <View style={styles.modalButtons}>
               <CustomButton
                 title="Save"
@@ -238,6 +349,8 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => {
                   setShowModal(false);
                   setDescription('');
+                  setIsPaid(false);
+                  setFreeMinutes('');
                 }}
                 type="secondary"
               />
@@ -458,5 +571,40 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginBottom: SPACING.small,
+  },
+  parkingTypeContainer: {
+    marginBottom: SPACING.medium,
+  },
+  label: {
+    fontSize: FONTS.sizes.regular,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.small,
+  },
+  radioContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: SPACING.small,
+  },
+  radioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    marginRight: SPACING.small,
+  },
+  radioSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  radioText: {
+    fontSize: FONTS.sizes.regular,
+    color: COLORS.text.primary,
+  },
+  freeMinutesContainer: {
+    marginBottom: SPACING.medium,
   },
 }); 

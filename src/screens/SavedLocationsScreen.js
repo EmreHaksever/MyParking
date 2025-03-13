@@ -85,40 +85,66 @@ export default function SavedLocationsScreen() {
     });
   };
 
-  const renderItem = ({ item }) => (
-    <View style={[styles.locationItem, isDarkMode && styles.darkLocationItem]}>
-      <TouchableOpacity 
-        style={styles.locationContent}
-        onPress={() => openMapsNavigation(item.latitude, item.longitude, item.description)}
-      >
-        <View style={styles.locationInfo}>
-          <Text style={[styles.locationDescription, isDarkMode && styles.darkText]}>
-            {item.description}
-          </Text>
-          <Text style={[styles.locationDetails, isDarkMode && styles.darkSecondaryText]}>
-            Lat: {item.latitude.toFixed(6)}, Long: {item.longitude.toFixed(6)}
-          </Text>
-          <Text style={[styles.timestamp, isDarkMode && styles.darkSecondaryText]}>
-            {new Date(item.timestamp).toLocaleString()}
-          </Text>
-        </View>
-        <View style={styles.locationActions}>
-          <TouchableOpacity 
-            style={[styles.actionButton, isDarkMode && styles.darkActionButton]}
-            onPress={() => openMapsNavigation(item.latitude, item.longitude, item.description)}
-          >
-            <Ionicons name="navigate" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionButton, isDarkMode && styles.darkActionButton]}
-            onPress={() => handleDelete(item.id)}
-          >
-            <Ionicons name="trash-outline" size={24} color={COLORS.error} />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderItem = ({ item }) => {
+    const calculateRemainingMinutes = (createdAt, freeMinutes) => {
+      if (!freeMinutes) return 0;
+      const currentTime = Date.now();
+      const elapsedMinutes = Math.floor((currentTime - createdAt) / (1000 * 60));
+      return Math.max(0, freeMinutes - elapsedMinutes);
+    };
+
+    const remainingMinutes = calculateRemainingMinutes(item.createdAt, item.freeMinutes);
+
+    return (
+      <View style={[styles.locationItem, isDarkMode && styles.darkLocationItem]}>
+        <TouchableOpacity 
+          style={styles.locationContent}
+          onPress={() => openMapsNavigation(item.latitude, item.longitude, item.description)}
+        >
+          <View style={styles.locationInfo}>
+            <Text style={[styles.locationDescription, isDarkMode && styles.darkText]}>
+              {item.description}
+            </Text>
+            <Text style={[styles.parkingType, isDarkMode && styles.darkSecondaryText]}>
+              {item.isPaid ? 'Paid Parking' : 'Free Parking'}
+            </Text>
+            {item.isPaid && (
+              <Text style={[
+                styles.freeMinutes, 
+                isDarkMode && styles.darkSecondaryText,
+                remainingMinutes === 0 && styles.expired
+              ]}>
+                {remainingMinutes > 0 
+                  ? `${remainingMinutes} minutes free parking remaining`
+                  : 'Free parking period expired'}
+              </Text>
+            )}
+            <Text style={[styles.locationDetails, isDarkMode && styles.darkSecondaryText]}>
+              Lat: {item.latitude.toFixed(6)}, Long: {item.longitude.toFixed(6)}
+            </Text>
+            <Text style={[styles.timestamp, isDarkMode && styles.darkSecondaryText]}>
+              {new Date(item.createdAt).toLocaleString()}
+            </Text>
+          </View>
+          
+          <View style={styles.locationActions}>
+            <TouchableOpacity 
+              style={[styles.actionButton, isDarkMode && styles.darkActionButton]}
+              onPress={() => openMapsNavigation(item.latitude, item.longitude, item.description)}
+            >
+              <Ionicons name="navigate" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.actionButton, isDarkMode && styles.darkActionButton]}
+              onPress={() => handleDelete(item.id)}
+            >
+              <Ionicons name="trash-outline" size={24} color={COLORS.error} />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
@@ -239,5 +265,20 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.regular,
     color: COLORS.text.secondary,
     marginTop: SPACING.xlarge,
+  },
+  parkingType: {
+    fontSize: FONTS.sizes.small,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.small,
+    fontWeight: FONTS.weights.medium,
+  },
+  freeMinutes: {
+    fontSize: FONTS.sizes.small,
+    color: COLORS.primary,
+    marginBottom: SPACING.small,
+    fontWeight: FONTS.weights.medium,
+  },
+  expired: {
+    color: COLORS.error,
   },
 }); 
