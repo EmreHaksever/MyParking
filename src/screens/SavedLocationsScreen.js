@@ -44,23 +44,23 @@ export default function SavedLocationsScreen() {
 
   const handleDelete = (locationId) => {
     Alert.alert(
-      'Delete Location',
-      'Are you sure you want to delete this location?',
+      'Konumu Sil',
+      'Bu konumu silmek istediğinizden emin misiniz?',
       [
         {
-          text: 'Cancel',
+          text: 'İptal',
           style: 'cancel'
         },
         {
-          text: 'Delete',
+          text: 'Sil',
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteParkingLocation(locationId);
               await loadLocations();
-              Alert.alert('Success', 'Location deleted successfully');
+              Alert.alert('Başarılı', 'Konum başarıyla silindi');
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete location');
+              Alert.alert('Hata', 'Konum silinirken bir hata oluştu');
             }
           }
         }
@@ -106,7 +106,7 @@ export default function SavedLocationsScreen() {
               {item.description}
             </Text>
             <Text style={[styles.parkingType, isDarkMode && styles.darkSecondaryText]}>
-              {item.isPaid ? 'Paid Parking' : 'Free Parking'}
+              {item.isPaid ? 'Ücretli Park' : 'Ücretsiz Park'}
             </Text>
             {item.isPaid && (
               <Text style={[
@@ -115,12 +115,12 @@ export default function SavedLocationsScreen() {
                 remainingMinutes === 0 && styles.expired
               ]}>
                 {remainingMinutes > 0 
-                  ? `${remainingMinutes} minutes free parking remaining`
-                  : 'Free parking period expired'}
+                  ? `${remainingMinutes} dakika ücretsiz park süresi kaldı`
+                  : 'Ücretsiz park süresi doldu'}
               </Text>
             )}
             <Text style={[styles.locationDetails, isDarkMode && styles.darkSecondaryText]}>
-              Lat: {item.latitude.toFixed(6)}, Long: {item.longitude.toFixed(6)}
+              Enlem: {item.latitude.toFixed(6)}, Boylam: {item.longitude.toFixed(6)}
             </Text>
             <Text style={[styles.timestamp, isDarkMode && styles.darkSecondaryText]}>
               {new Date(item.createdAt).toLocaleString()}
@@ -149,7 +149,7 @@ export default function SavedLocationsScreen() {
   return (
     <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
       <View style={[styles.header, isDarkMode && styles.darkHeader]}>
-        <Text style={[styles.title, isDarkMode && styles.darkText]}>Saved Locations</Text>
+        <Text style={[styles.title, isDarkMode && styles.darkText]}>Kayıtlı Konumlar</Text>
       </View>
 
       <FlatList
@@ -160,7 +160,7 @@ export default function SavedLocationsScreen() {
         ListEmptyComponent={
           !isLoading && (
             <Text style={[styles.emptyText, isDarkMode && styles.darkSecondaryText]}>
-              No saved locations yet
+              Henüz kayıtlı konum yok
             </Text>
           )
         }

@@ -39,7 +39,7 @@ export default function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
       <View style={styles.content}>
-        <Text style={[styles.title, isDarkMode && styles.darkText]}>Profile</Text>
+        <Text style={[styles.title, isDarkMode && styles.darkText]}>Profil</Text>
         
         {userData && (
           <>
@@ -55,7 +55,7 @@ export default function ProfileScreen({ navigation }) {
               size={24} 
               color={isDarkMode ? COLORS.primary : COLORS.text.primary} 
             />
-            <Text style={[styles.settingText, isDarkMode && styles.darkText]}>Dark Mode</Text>
+            <Text style={[styles.settingText, isDarkMode && styles.darkText]}>Karanlık Mod</Text>
           </View>
           <Switch
             value={isDarkMode}
@@ -66,7 +66,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
         
         <CustomButton
-          title="Logout"
+          title="Çıkış Yap"
           onPress={handleLogout}
           style={styles.logoutButton}
         />

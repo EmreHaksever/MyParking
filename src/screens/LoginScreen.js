@@ -68,12 +68,12 @@ export default function LoginScreen({ navigation }) {
 
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert('Hata', 'Lütfen tüm gerekli alanları doldurun');
       return;
     }
 
     if (!isLogin && (!firstName || !lastName)) {
-      Alert.alert('Error', 'Please fill in your first and last name');
+      Alert.alert('Hata', 'Lütfen ad ve soyadınızı girin');
       return;
     }
 
@@ -120,9 +120,9 @@ export default function LoginScreen({ navigation }) {
     } catch (error) {
       console.error('Auth error:', error);
       Alert.alert(
-        'Error',
+        'Hata',
         error.code === 'auth/email-already-in-use'
-          ? 'This email is already registered. Please try logging in.'
+          ? 'Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapmayı deneyin.'
           : error.message
       );
     }
@@ -184,8 +184,8 @@ export default function LoginScreen({ navigation }) {
           <Animated.View style={[styles.logoContainer, { transform: [{ scale: animation }] }]}>
             <ParkingLogo width={width * 0.4} height={width * 0.4} />
           </Animated.View>
-          <Text style={styles.appName}>MyParking</Text>
-          <Text style={styles.slogan}>Park Your Car Safely</Text>
+          <Text style={styles.appName}>Park Yerim</Text>
+          <Text style={styles.slogan}>Aracınızı Güvenle Park Edin</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -194,7 +194,7 @@ export default function LoginScreen({ navigation }) {
             transform: [{ translateX: slideAnim }]
           }}>
             <Text style={styles.title}>
-              {isLogin ? 'Welcome Back' : 'Join Us'}
+              {isLogin ? 'Tekrar Hoşgeldiniz' : 'Bize Katılın'}
             </Text>
             
             <View style={styles.inputContainer}>
@@ -203,13 +203,13 @@ export default function LoginScreen({ navigation }) {
                   <CustomInput
                     value={firstName}
                     onChangeText={setFirstName}
-                    placeholder="First Name"
+                    placeholder="Ad"
                     autoCapitalize="words"
                   />
                   <CustomInput
                     value={lastName}
                     onChangeText={setLastName}
-                    placeholder="Last Name"
+                    placeholder="Soyad"
                     autoCapitalize="words"
                   />
                 </>
@@ -218,7 +218,7 @@ export default function LoginScreen({ navigation }) {
               <CustomInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Email"
+                placeholder="E-posta"
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -227,7 +227,7 @@ export default function LoginScreen({ navigation }) {
                 <CustomInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Password"
+                  placeholder="Şifre"
                   secureTextEntry={!showPassword}
                   style={styles.passwordInput}
                 />
@@ -264,22 +264,19 @@ export default function LoginScreen({ navigation }) {
             </View>
 
             <CustomButton
-              title={isLogin ? 'Login' : 'Register'}
+              title={isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
               onPress={handleAuth}
               style={styles.loginButton}
             />
           </Animated.View>
           
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>
-              {isLogin ? 'Don\'t have an account?' : 'Already have an account?'}
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchText}>
+              {isLogin ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?'}
             </Text>
-            <TouchableOpacity 
-              onPress={() => animateTransition(!isLogin)}
-              style={styles.registerButton}
-            >
-              <Text style={styles.registerButtonText}>
-                {isLogin ? 'Register' : 'Login'}
+            <TouchableOpacity onPress={() => animateTransition(!isLogin)}>
+              <Text style={styles.switchButton}>
+                {isLogin ? 'Kayıt Olun' : 'Giriş Yapın'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -406,21 +403,18 @@ const styles = StyleSheet.create({
   loginButton: {
     marginBottom: SPACING.medium,
   },
-  registerContainer: {
+  switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.small,
   },
-  registerText: {
+  switchText: {
     color: COLORS.text.secondary,
     fontSize: FONTS.sizes.regular,
     marginRight: SPACING.small,
   },
-  registerButton: {
-    padding: SPACING.small,
-  },
-  registerButtonText: {
+  switchButton: {
     color: COLORS.primary,
     fontSize: FONTS.sizes.regular,
     fontWeight: FONTS.weights.semiBold,

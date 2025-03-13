@@ -215,7 +215,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
       <View style={[styles.header, isDarkMode && styles.darkHeader]}>
-        <Text style={[styles.title, isDarkMode && styles.darkText]}>MyParking</Text>
+        <Text style={[styles.title, isDarkMode && styles.darkText]}>Park Yerim</Text>
       </View>
 
       <View style={styles.mapContainer}>
@@ -236,7 +236,7 @@ export default function HomeScreen({ navigation }) {
                 latitude: location.latitude,
                 longitude: location.longitude,
               }}
-              title="Your Location"
+              title="Konumunuz"
             >
               <View style={[styles.markerContainer, isDarkMode && styles.darkMarkerContainer]}>
                 <Ionicons name="car" size={30} color={COLORS.primary} />
@@ -252,7 +252,7 @@ export default function HomeScreen({ navigation }) {
                 longitude: parking.longitude,
               }}
               title={parking.description}
-              description="Saved Parking Location"
+              description="Kayıtlı Park Yeri"
             >
               <View style={[styles.markerContainer, isDarkMode && styles.darkMarkerContainer]}>
                 <Ionicons name="car" size={30} color={COLORS.error} />
@@ -292,18 +292,18 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
             <Text style={[styles.modalTitle, isDarkMode && styles.darkText]}>
-              Save Parking Location
+              Park Yeri Kaydet
             </Text>
             
             <CustomInput
               value={description}
               onChangeText={setDescription}
-              placeholder="Enter location description"
+              placeholder="Konum açıklaması girin"
               style={styles.input}
             />
 
             <View style={styles.parkingTypeContainer}>
-              <Text style={[styles.label, isDarkMode && styles.darkText]}>Parking Type:</Text>
+              <Text style={[styles.label, isDarkMode && styles.darkText]}>Park Tipi:</Text>
               <View style={styles.radioContainer}>
                 <TouchableOpacity 
                   style={styles.radioButton} 
@@ -313,25 +313,25 @@ export default function HomeScreen({ navigation }) {
                   }}
                 >
                   <View style={[styles.radio, !isPaid && styles.radioSelected]} />
-                  <Text style={[styles.radioText, isDarkMode && styles.darkText]}>Free</Text>
+                  <Text style={[styles.radioText, isDarkMode && styles.darkText]}>Ücretsiz</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.radioButton} 
                   onPress={() => setIsPaid(true)}
                 >
                   <View style={[styles.radio, isPaid && styles.radioSelected]} />
-                  <Text style={[styles.radioText, isDarkMode && styles.darkText]}>Paid</Text>
+                  <Text style={[styles.radioText, isDarkMode && styles.darkText]}>Ücretli</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {isPaid && (
               <View style={styles.freeMinutesContainer}>
-                <Text style={[styles.label, isDarkMode && styles.darkText]}>Free Minutes:</Text>
+                <Text style={[styles.label, isDarkMode && styles.darkText]}>Ücretsiz Dakika:</Text>
                 <CustomInput
                   value={freeMinutes}
                   onChangeText={setFreeMinutes}
-                  placeholder="Enter free minutes"
+                  placeholder="Ücretsiz dakika girin"
                   keyboardType="numeric"
                   style={styles.input}
                 />
@@ -340,12 +340,12 @@ export default function HomeScreen({ navigation }) {
 
             <View style={styles.modalButtons}>
               <CustomButton
-                title="Save"
+                title="Kaydet"
                 onPress={handleSaveLocation}
                 style={styles.saveButton}
               />
               <CustomButton
-                title="Cancel"
+                title="İptal"
                 onPress={() => {
                   setShowModal(false);
                   setDescription('');

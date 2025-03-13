@@ -48,34 +48,29 @@ const TabNavigator = () => {
       <Tab.Screen 
         name="HomeTab" 
         component={HomeScreen}
-        options={{ title: 'Home' }}
+        options={{ title: 'Ana Sayfa' }}
       />
       <Tab.Screen 
         name="SavedLocations" 
         component={SavedLocationsScreen}
-        options={{ title: 'Saved' }}
+        options={{ title: 'Kayıtlı Yerler' }}
       />
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen}
+        options={{ title: 'Profil' }}
       />
     </Tab.Navigator>
   );
 };
 
-export const Navigation = () => {
+export default function AppNavigation() {
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
+      <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={TabNavigator} />
       </Stack.Navigator>
     </NavigationContainer>
   );
-};
-
-export default Navigation; 
+} 
