@@ -206,13 +206,19 @@ export default function SavedLocationsScreen() {
             
             <View style={styles.infoRow}>
               <Ionicons 
-                name="location-outline" 
+                name="calendar-outline" 
                 size={16} 
                 color={isDarkMode ? COLORS.white : COLORS.text.primary} 
                 style={styles.infoIcon}
               />
               <Text style={[styles.locationDetails, isDarkMode && styles.darkSecondaryText]}>
-                {item.latitude.toFixed(6)}, {item.longitude.toFixed(6)}
+                {new Date(item.createdAt).toLocaleDateString('tr-TR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })} tarihinde kaydedildi
               </Text>
             </View>
           </View>
