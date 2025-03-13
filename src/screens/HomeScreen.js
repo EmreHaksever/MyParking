@@ -8,7 +8,8 @@ import {
   Modal,
   ActivityIndicator,
   TouchableOpacity,
-  Platform
+  Platform,
+  Linking
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -218,6 +219,41 @@ export default function HomeScreen({ navigation }) {
         <Text style={[styles.title, isDarkMode && styles.darkText]}>Park Yerim</Text>
       </View>
 
+      {/* Arama Çubuğu */}
+      <View style={[styles.searchContainer, isDarkMode && styles.darkSearchContainer]}>
+        <Ionicons name="search" size={20} color={isDarkMode ? COLORS.white : COLORS.text.secondary} />
+        <TouchableOpacity 
+          style={styles.searchInput}
+          onPress={() => Alert.alert('Bilgi', 'Arama özelliği yakında eklenecek!')}
+        >
+          <Text style={[styles.searchPlaceholder, isDarkMode && styles.darkSecondaryText]}>
+            Konum ara...
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Filtre Butonları */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity 
+          style={[styles.filterButton, styles.filterButtonActive, isDarkMode && styles.darkFilterButtonActive]}
+          onPress={() => Alert.alert('Bilgi', 'Tüm park yerleri gösteriliyor.')}
+        >
+          <Text style={[styles.filterText, styles.filterTextActive, isDarkMode && styles.darkText]}>Tümü</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.filterButton, isDarkMode && styles.darkFilterButton]}
+          onPress={() => Alert.alert('Bilgi', 'Ücretsiz park yerleri filtresi yakında eklenecek!')}
+        >
+          <Text style={[styles.filterText, isDarkMode && styles.darkSecondaryText]}>Ücretsiz</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.filterButton, isDarkMode && styles.darkFilterButton]}
+          onPress={() => Alert.alert('Bilgi', 'Ücretli park yerleri filtresi yakında eklenecek!')}
+        >
+          <Text style={[styles.filterText, isDarkMode && styles.darkSecondaryText]}>Ücretli</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
@@ -283,6 +319,89 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Bilgi Kartı */}
+      {parkingLocations.length > 0 ? (
+        <View style={[styles.infoCard, isDarkMode && styles.darkInfoCard]}>
+          <View style={styles.infoCardHeader}>
+            <Text style={[styles.infoCardTitle, isDarkMode && styles.darkText]}>
+              Aktif Park Bilgisi
+            </Text>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('SavedLocations')}
+              style={styles.viewAllButton}
+            >
+              <Text style={styles.viewAllText}>Tümünü Gör</Text>
+            </TouchableOpacity>
+          </View>
+
+          {parkingLocations.slice(0, 1).map(parking => {
+            const calculateRemainingMinutes = (createdAt, freeMinutes) => {
+              if (!freeMinutes) return 0;
+              const currentTime = Date.now();
+              const elapsedMinutes = Math.floor((currentTime - createdAt) / (1000 * 60));
+              return Math.max(0, freeMinutes - elapsedMinutes);
+            };
+
+            const remainingMinutes = calculateRemainingMinutes(parking.createdAt, parking.freeMinutes);
+
+            return (
+              <View key={parking.id} style={styles.parkingInfoContainer}>
+                <View style={styles.parkingInfoLeft}>
+                  <View style={styles.parkingIconContainer}>
+                    <Ionicons name="car" size={24} color={COLORS.white} />
+                  </View>
+                  <View style={styles.parkingDetails}>
+                    <Text style={[styles.parkingDescription, isDarkMode && styles.darkText]} numberOfLines={1}>
+                      {parking.description}
+                    </Text>
+                    <Text style={[styles.parkingType, isDarkMode && styles.darkSecondaryText]}>
+                      {parking.isPaid ? 'Ücretli Park' : 'Ücretsiz Park'}
+                    </Text>
+                    {parking.isPaid && (
+                      <Text style={[
+                        styles.remainingTime, 
+                        remainingMinutes === 0 ? styles.expiredTime : styles.activeTime
+                      ]}>
+                        {remainingMinutes > 0 
+                          ? `${remainingMinutes} dakika kaldı`
+                          : 'Süre doldu'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.navigateButton}
+                  onPress={() => {
+                    const scheme = Platform.select({
+                      ios: 'maps:0,0?q=',
+                      android: 'geo:0,0?q='
+                    });
+                    const latLng = `${parking.latitude},${parking.longitude}`;
+                    const label = parking.description;
+                    const url = Platform.select({
+                      ios: `${scheme}${label}@${latLng}`,
+                      android: `${scheme}${latLng}(${label})`
+                    });
+                    Linking.openURL(url);
+                  }}
+                >
+                  <Ionicons name="navigate" size={24} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={[styles.infoCard, isDarkMode && styles.darkInfoCard]}>
+          <Text style={[styles.emptyText, isDarkMode && styles.darkText]}>
+            Henüz kayıtlı park yeriniz yok
+          </Text>
+          <Text style={[styles.emptySubText, isDarkMode && styles.darkSecondaryText]}>
+            Park yerinizi kaydetmek için haritada bir konum seçin ve sağ alttaki + butonuna tıklayın
+          </Text>
+        </View>
+      )}
 
       <Modal
         visible={showModal}
@@ -491,6 +610,77 @@ const styles = StyleSheet.create({
   darkText: {
     color: COLORS.white,
   },
+  darkSecondaryText: {
+    color: '#a0a0a0',
+  },
+  // Arama Çubuğu Stilleri
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    marginHorizontal: SPACING.medium,
+    marginVertical: SPACING.small,
+    paddingHorizontal: SPACING.medium,
+    paddingVertical: SPACING.small,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  darkSearchContainer: {
+    backgroundColor: '#2a2a2a',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: SPACING.small,
+    height: 40,
+    justifyContent: 'center',
+  },
+  searchPlaceholder: {
+    color: COLORS.text.secondary,
+    fontSize: FONTS.sizes.regular,
+  },
+  // Filtre Butonları Stilleri
+  filterContainer: {
+    flexDirection: 'row',
+    marginHorizontal: SPACING.medium,
+    marginBottom: SPACING.small,
+  },
+  filterButton: {
+    paddingHorizontal: SPACING.medium,
+    paddingVertical: SPACING.small,
+    borderRadius: 20,
+    marginRight: SPACING.small,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.shadow,
+  },
+  darkFilterButton: {
+    backgroundColor: '#2a2a2a',
+    borderColor: '#3a3a3a',
+  },
+  filterButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  darkFilterButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterText: {
+    fontSize: FONTS.sizes.small,
+    color: COLORS.text.secondary,
+  },
+  filterTextActive: {
+    color: COLORS.white,
+    fontWeight: FONTS.weights.semiBold,
+  },
+  // Harita Stilleri
   mapContainer: {
     flex: 1,
     position: 'relative',
@@ -535,6 +725,110 @@ const styles = StyleSheet.create({
   darkMarkerContainer: {
     backgroundColor: 'rgba(42, 42, 42, 0.8)',
   },
+  // Bilgi Kartı Stilleri
+  infoCard: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: SPACING.large,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  darkInfoCard: {
+    backgroundColor: '#2a2a2a',
+  },
+  infoCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.medium,
+  },
+  infoCardTitle: {
+    fontSize: FONTS.sizes.regular,
+    fontWeight: FONTS.weights.semiBold,
+    color: COLORS.text.primary,
+  },
+  viewAllButton: {
+    padding: SPACING.small,
+  },
+  viewAllText: {
+    color: COLORS.primary,
+    fontSize: FONTS.sizes.small,
+    fontWeight: FONTS.weights.medium,
+  },
+  parkingInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    borderRadius: 12,
+    padding: SPACING.medium,
+  },
+  parkingInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  parkingIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.medium,
+  },
+  parkingDetails: {
+    flex: 1,
+  },
+  parkingDescription: {
+    fontSize: FONTS.sizes.regular,
+    fontWeight: FONTS.weights.semiBold,
+    color: COLORS.text.primary,
+    marginBottom: 2,
+  },
+  parkingType: {
+    fontSize: FONTS.sizes.small,
+    color: COLORS.text.secondary,
+    marginBottom: 2,
+  },
+  remainingTime: {
+    fontSize: FONTS.sizes.small,
+    fontWeight: FONTS.weights.medium,
+  },
+  activeTime: {
+    color: COLORS.primary,
+  },
+  expiredTime: {
+    color: COLORS.error,
+  },
+  navigateButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: FONTS.sizes.regular,
+    fontWeight: FONTS.weights.semiBold,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: SPACING.small,
+  },
+  emptySubText: {
+    fontSize: FONTS.sizes.small,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+  },
+  // Modal Stilleri
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
