@@ -9,15 +9,23 @@ import {
   ScrollView,
   Image,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { auth } from '../services/firebase';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import CustomButton from '../components/CustomButton';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import CustomInput from '../components/CustomInput';
+import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserParkingLocations } from '../services/parkingService';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function ProfileScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
@@ -27,39 +35,48 @@ export default function ProfileScreen({ navigation }) {
     freeLocations: 0,
     paidLocations: 0
   });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
 
   useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Kullanıcı bilgilerini yükle
-        const db = getFirestore();
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
-        }
-        
-        // Kullanıcı istatistiklerini yükle
-        const locations = await getUserParkingLocations();
-        const freeLocations = locations.filter(loc => !loc.isPaid);
-        const paidLocations = locations.filter(loc => loc.isPaid);
-        
-        setStats({
-          totalLocations: locations.length,
-          freeLocations: freeLocations.length,
-          paidLocations: paidLocations.length
-        });
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadUserData();
   }, []);
+
+  const loadUserData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Kullanıcı bilgilerini yükle
+      const db = getFirestore();
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUserData(data);
+        setEditFirstName(data.firstName || '');
+        setEditLastName(data.lastName || '');
+      }
+      
+      // Kullanıcı istatistiklerini yükle
+      const locations = await getUserParkingLocations();
+      const freeLocations = locations.filter(loc => !loc.isPaid);
+      const paidLocations = locations.filter(loc => loc.isPaid);
+      
+      setStats({
+        totalLocations: locations.length,
+        freeLocations: freeLocations.length,
+        paidLocations: paidLocations.length
+      });
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -88,7 +105,274 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleEditProfile = () => {
-    Alert.alert('Bilgi', 'Profil düzenleme özelliği yakında eklenecek!');
+    setShowEditModal(true);
+    // Eğer kullanıcının profil fotoğrafı varsa, seçili fotoğraf olarak ayarla
+    if (userData?.photoURL) {
+      setSelectedImage(userData.photoURL);
+    } else {
+      setSelectedImage(null);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      Alert.alert('Hata', 'Ad ve soyad alanları boş bırakılamaz.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const db = getFirestore();
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      
+      const updatedData = {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+        displayName: `${editFirstName.trim()} ${editLastName.trim()}`,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Profil fotoğrafı zaten uploadImage fonksiyonunda kaydediliyor
+      // Bu nedenle burada tekrar kaydetmeye gerek yok
+      
+      await updateDoc(userRef, updatedData);
+      
+      // Kullanıcı verilerini güncelle
+      setUserData(prevData => ({
+        ...prevData,
+        ...updatedData
+      }));
+      
+      setShowEditModal(false);
+      Alert.alert('Başarılı', 'Profil bilgileriniz başarıyla güncellendi.');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Hata', 'Profil güncellenirken bir sorun oluştu.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleChangePhoto = () => {
+    console.log('handleChangePhoto called');
+    
+    Alert.alert(
+      'Profil Fotoğrafı',
+      'Profil fotoğrafınızı nasıl değiştirmek istersiniz?',
+      [
+        {
+          text: 'Kamera',
+          onPress: () => {
+            console.log('Camera option selected');
+            takePhoto();
+          },
+        },
+        {
+          text: 'Galeri',
+          onPress: () => {
+            console.log('Gallery option selected');
+            pickImage();
+          },
+        },
+        {
+          text: 'İptal',
+          style: 'cancel',
+          onPress: () => console.log('Photo change canceled'),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const requestPermissions = async () => {
+    console.log('Requesting permissions...');
+    
+    if (Platform.OS !== 'web') {
+      try {
+        console.log('Requesting camera permission...');
+        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+        console.log('Camera permission status:', cameraStatus);
+        
+        console.log('Requesting media library permission...');
+        const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        console.log('Media library permission status:', libraryStatus);
+        
+        if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
+          console.log('Permission denied. Camera:', cameraStatus, 'Library:', libraryStatus);
+          Alert.alert(
+            'İzin Gerekli',
+            'Fotoğraf seçmek veya çekmek için kamera ve galeri izinleri gereklidir. Lütfen uygulama ayarlarından izinleri etkinleştirin.',
+            [
+              { 
+                text: 'Tamam',
+                onPress: () => console.log('Permission alert closed')
+              }
+            ]
+          );
+          return false;
+        }
+        
+        console.log('All permissions granted');
+        return true;
+      } catch (error) {
+        console.error('Error requesting permissions:', error);
+        Alert.alert('Hata', `İzinler istenirken bir sorun oluştu: ${error.message}`);
+        return false;
+      }
+    }
+    
+    console.log('Platform is web, no permissions needed');
+    return true;
+  };
+
+  const takePhoto = async () => {
+    try {
+      console.log('Taking photo...');
+      const permissionResult = await requestPermissions();
+      
+      if (!permissionResult) {
+        console.log('Camera permission denied');
+        return;
+      }
+      
+      setIsUploadingImage(true);
+      
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      
+      console.log('Camera result:', result);
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        console.log('Selected image URI:', imageUri);
+        
+        const uploadedImage = await uploadImage(imageUri);
+        if (uploadedImage) {
+          console.log('Photo uploaded successfully');
+          setSelectedImage(uploadedImage);
+        }
+      } else {
+        console.log('Camera capture canceled or failed');
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Hata', 'Fotoğraf çekilirken bir sorun oluştu: ' + error.message);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      console.log('Picking image from library...');
+      const permissionResult = await requestPermissions();
+      
+      if (!permissionResult) {
+        console.log('Media library permission denied');
+        return;
+      }
+      
+      setIsUploadingImage(true);
+      
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      
+      console.log('Image picker result:', result);
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        console.log('Selected image URI:', imageUri);
+        
+        const uploadedImage = await uploadImage(imageUri);
+        if (uploadedImage) {
+          console.log('Photo uploaded successfully');
+          setSelectedImage(uploadedImage);
+        }
+      } else {
+        console.log('Image selection canceled or failed');
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Hata', 'Fotoğraf seçilirken bir sorun oluştu: ' + error.message);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const uploadImage = async (uri) => {
+    try {
+      console.log('Uploading image with URI:', uri);
+      setIsUploadingImage(true);
+      
+      // Resmi daha küçük boyuta sıkıştır
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 200, height: 200 } }],  // Daha küçük boyut
+        { compress: 0.3, format: ImageManipulator.SaveFormat.JPEG, base64: true }  // Daha fazla sıkıştırma
+      );
+      
+      console.log('Image compressed successfully');
+      
+      if (!manipResult.base64) {
+        throw new Error('Resim sıkıştırma başarısız oldu');
+      }
+      
+      // Base64 formatında kaydet
+      const base64Image = `data:image/jpeg;base64,${manipResult.base64}`;
+      console.log('Base64 image size:', base64Image.length, 'bytes');
+      
+      // Firestore'a kaydet
+      const db = getFirestore();
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      
+      // Firebase Storage kullanarak kaydet
+      try {
+        // Kullanıcı verilerini güncelle
+        setUserData(prevData => ({
+          ...prevData,
+          photoURL: base64Image
+        }));
+        
+        setSelectedImage(base64Image);
+        
+        // Firestore'a kaydet
+        await updateDoc(userRef, {
+          photoURL: base64Image,
+          updatedAt: new Date().toISOString()
+        });
+        
+        console.log('Image successfully saved to Firestore');
+        return base64Image;
+      } catch (firestoreError) {
+        console.error('Error saving to Firestore:', firestoreError);
+        
+        // Firestore hatası durumunda alternatif olarak Firebase Storage'ı deneyelim
+        if (firestoreError.message.includes('longer than 1048487 bytes')) {
+          Alert.alert(
+            'Bilgi', 
+            'Fotoğraf boyutu çok büyük olduğu için profil fotoğrafınız geçici olarak kaydedilemedi. Daha küçük bir fotoğraf seçmeyi deneyin.'
+          );
+        } else {
+          throw firestoreError;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error in uploadImage:', error);
+      Alert.alert('Hata', 'Fotoğraf yüklenirken bir sorun oluştu: ' + error.message);
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleNotificationSettings = () => {
@@ -337,6 +621,95 @@ export default function ProfileScreen({ navigation }) {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Profil Düzenleme Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
+          <View style={[styles.modalContent, isDarkMode && styles.darkModalContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDarkMode && styles.darkText]}>
+                Profil Düzenle
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowEditModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons 
+                  name="close" 
+                  size={24} 
+                  color={isDarkMode ? COLORS.white : COLORS.text.primary} 
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.profileImageEditContainer}>
+              {isUploadingImage ? (
+                <View style={[styles.largeProfileImage, styles.uploadingContainer]}>
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
+              ) : selectedImage ? (
+                <Image 
+                  source={{ uri: selectedImage }} 
+                  style={styles.largeProfileImage} 
+                />
+              ) : (
+                <View style={[styles.profileImagePlaceholder, isDarkMode && styles.darkProfileImagePlaceholder, styles.largeProfileImage]}>
+                  <Text style={[styles.profileImageText, styles.largeProfileImageText]}>
+                    {editFirstName?.charAt(0) || ''}{editLastName?.charAt(0) || ''}
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity 
+                style={styles.changePhotoButton}
+                onPress={handleChangePhoto}
+                disabled={isUploadingImage}
+              >
+                <Text style={[
+                  styles.changePhotoText, 
+                  isUploadingImage && styles.disabledText
+                ]}>
+                  Fotoğraf Değiştir
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isDarkMode && styles.darkText]}>Ad</Text>
+              <CustomInput
+                value={editFirstName}
+                onChangeText={setEditFirstName}
+                placeholder="Adınız"
+                style={styles.input}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isDarkMode && styles.darkText]}>Soyad</Text>
+              <CustomInput
+                value={editLastName}
+                onChangeText={setEditLastName}
+                placeholder="Soyadınız"
+                style={styles.input}
+              />
+            </View>
+
+            <CustomButton
+              title={isSaving ? "Kaydediliyor..." : "Kaydet"}
+              onPress={handleSaveProfile}
+              style={styles.saveButton}
+              disabled={isSaving || isUploadingImage}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -557,5 +930,90 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: FONTS.sizes.xsmall,
     color: COLORS.text.secondary,
+  },
+  // Modal Stilleri
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: SPACING.medium,
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: SPACING.large,
+    width: '100%',
+    maxWidth: 500,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  darkModalContent: {
+    backgroundColor: '#2a2a2a',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.large,
+  },
+  modalTitle: {
+    fontSize: FONTS.sizes.subtitle,
+    fontWeight: FONTS.weights.semiBold,
+    color: COLORS.text.primary,
+  },
+  closeButton: {
+    padding: SPACING.small,
+  },
+  profileImageEditContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.large,
+  },
+  largeProfileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: SPACING.medium,
+  },
+  largeProfileImageText: {
+    fontSize: FONTS.sizes.xlarge,
+  },
+  changePhotoButton: {
+    padding: SPACING.small,
+  },
+  changePhotoText: {
+    color: COLORS.primary,
+    fontSize: FONTS.sizes.regular,
+    fontWeight: FONTS.weights.medium,
+  },
+  inputContainer: {
+    marginBottom: SPACING.medium,
+  },
+  inputLabel: {
+    fontSize: FONTS.sizes.regular,
+    fontWeight: FONTS.weights.medium,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.small / 2,
+  },
+  input: {
+    marginBottom: SPACING.small,
+  },
+  saveButton: {
+    marginTop: SPACING.medium,
+  },
+  // Fotoğraf Yükleme Stilleri
+  uploadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  disabledText: {
+    opacity: 0.5,
   },
 }); 
