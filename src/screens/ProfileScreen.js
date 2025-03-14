@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -26,6 +26,7 @@ import { getUserParkingLocations } from '../services/parkingService';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProfileScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
@@ -46,6 +47,13 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     loadUserData();
   }, []);
+
+  // Ekran her odaklandığında sayaçları güncelle
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+    }, [])
+  );
 
   const loadUserData = async () => {
     try {
