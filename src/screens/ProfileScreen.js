@@ -1016,4 +1016,26 @@ const styles = StyleSheet.create({
   disabledText: {
     opacity: 0.5,
   },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 20,
+    paddingHorizontal: 10,
+  },
+  statBox: {
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    padding: 15,
+    width: '30%',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+  }
 }); 
