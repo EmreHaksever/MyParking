@@ -10,7 +10,9 @@ import {
   Animated,
   Dimensions,
   TouchableOpacity,
-  LinearGradient
+  ActivityIndicator,
+  StatusBar,
+  ScrollView
 } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, saveUserData } from '../services/firebase';
@@ -18,7 +20,9 @@ import { COLORS, FONTS, SPACING } from '../constants/theme';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import ParkingLogo from '../components/ParkingLogo';
-import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
+import { useTheme } from '../context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -30,12 +34,19 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   // Yeni animasyon değerleri
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  
+  const { isDarkMode } = useTheme();
 
   const animateTransition = (isLoginNext) => {
+    // Hata mesajını temizle
+    setErrorMessage('');
+    
     // Önce mevcut içeriği fade out yap
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -67,17 +78,22 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleAuth = async () => {
+    // Hata mesajını temizle
+    setErrorMessage('');
+    
     if (!email || !password) {
-      Alert.alert('Hata', 'Lütfen tüm gerekli alanları doldurun');
+      setErrorMessage('Lütfen tüm gerekli alanları doldurun');
       return;
     }
 
     if (!isLogin && (!firstName || !lastName)) {
-      Alert.alert('Hata', 'Lütfen ad ve soyadınızı girin');
+      setErrorMessage('Lütfen ad ve soyadınızı girin');
       return;
     }
 
     try {
+      setIsLoading(true);
+      
       // Animate logo on submit
       Animated.sequence([
         Animated.timing(animation, {
@@ -107,6 +123,8 @@ export default function LoginScreen({ navigation }) {
             lastName,
             email,
             displayName: `${firstName} ${lastName}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           });
         } catch (firestoreError) {
           console.error('Firestore error:', firestoreError);
@@ -119,28 +137,58 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Auth error:', error);
-      Alert.alert(
-        'Hata',
-        error.code === 'auth/email-already-in-use'
-          ? 'Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapmayı deneyin.'
-          : error.message
-      );
+      
+      // Kullanıcı dostu hata mesajları
+      let errorMsg = 'Bir hata oluştu. Lütfen tekrar deneyin.';
+      
+      switch(error.code) {
+        case 'auth/email-already-in-use':
+          errorMsg = 'Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapmayı deneyin.';
+          break;
+        case 'auth/invalid-email':
+          errorMsg = 'Geçersiz e-posta adresi. Lütfen kontrol edin.';
+          break;
+        case 'auth/user-not-found':
+          errorMsg = 'Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.';
+          break;
+        case 'auth/wrong-password':
+          errorMsg = 'Hatalı şifre. Lütfen tekrar deneyin.';
+          break;
+        case 'auth/weak-password':
+          errorMsg = 'Şifre çok zayıf. Lütfen en az 6 karakter içeren güçlü bir şifre seçin.';
+          break;
+        case 'auth/network-request-failed':
+          errorMsg = 'Ağ hatası. Lütfen internet bağlantınızı kontrol edin.';
+          break;
+        case 'auth/too-many-requests':
+          errorMsg = 'Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.';
+          break;
+      }
+      
+      setErrorMessage(errorMsg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"} 
+        backgroundColor={isDarkMode ? "#121212" : COLORS.background}
+      />
+      
       <View style={styles.backgroundPattern}>
         <Svg height="100%" width="100%" style={styles.backgroundSvg}>
           <Defs>
             <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={COLORS.primaryLight} stopOpacity="0.03" />
-              <Stop offset="0.5" stopColor={COLORS.primary} stopOpacity="0.05" />
-              <Stop offset="1" stopColor={COLORS.primaryDark} stopOpacity="0.08" />
+              <Stop offset="0" stopColor={isDarkMode ? "#2a2a2a" : COLORS.primaryLight} stopOpacity={isDarkMode ? "0.1" : "0.03"} />
+              <Stop offset="0.5" stopColor={COLORS.primary} stopOpacity={isDarkMode ? "0.15" : "0.05"} />
+              <Stop offset="1" stopColor={isDarkMode ? "#1a1a1a" : COLORS.primaryDark} stopOpacity={isDarkMode ? "0.2" : "0.08"} />
             </SvgGradient>
             <SvgGradient id="patternGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={COLORS.primary} stopOpacity="0.02" />
-              <Stop offset="1" stopColor={COLORS.primaryLight} stopOpacity="0.05" />
+              <Stop offset="0" stopColor={COLORS.primary} stopOpacity={isDarkMode ? "0.05" : "0.02"} />
+              <Stop offset="1" stopColor={isDarkMode ? "#2a2a2a" : COLORS.primaryLight} stopOpacity={isDarkMode ? "0.1" : "0.05"} />
             </SvgGradient>
           </Defs>
           
@@ -165,13 +213,13 @@ export default function LoginScreen({ navigation }) {
             d="M0 100 Q 400 0, 800 100 T 1600 100"
             stroke={COLORS.primary}
             strokeWidth="1"
-            opacity="0.05"
+            opacity={isDarkMode ? "0.1" : "0.05"}
           />
           <Path
             d="M0 200 Q 400 100, 800 200 T 1600 200"
             stroke={COLORS.primary}
             strokeWidth="1"
-            opacity="0.03"
+            opacity={isDarkMode ? "0.08" : "0.03"}
           />
         </Svg>
       </View>
@@ -179,110 +227,120 @@ export default function LoginScreen({ navigation }) {
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.contentContainer}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
       >
-        <View style={styles.headerContainer}>
-          <Animated.View style={[styles.logoContainer, { transform: [{ scale: animation }] }]}>
-            <ParkingLogo width={width * 0.4} height={width * 0.4} />
-          </Animated.View>
-          <Text style={styles.appName}>Park Yerim</Text>
-          <Text style={styles.slogan}>Aracınızı Güvenle Park Edin</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          <Animated.View style={{
-            opacity: fadeAnim,
-            transform: [{ translateX: slideAnim }]
-          }}>
-            <Text style={styles.title}>
-              {isLogin ? 'Tekrar Hoşgeldiniz' : 'Bize Katılın'}
-            </Text>
-            
-            <View style={styles.inputContainer}>
-              {!isLogin && (
-                <>
-                  <CustomInput
-                    value={firstName}
-                    onChangeText={setFirstName}
-                    placeholder="Ad"
-                    autoCapitalize="words"
-                  />
-                  <CustomInput
-                    value={lastName}
-                    onChangeText={setLastName}
-                    placeholder="Soyad"
-                    autoCapitalize="words"
-                  />
-                </>
-              )}
-              
-              <CustomInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="E-posta"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              
-              <View style={styles.passwordContainer}>
-                <CustomInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Şifre"
-                  secureTextEntry={!showPassword}
-                  style={styles.passwordInput}
-                />
-                <TouchableOpacity 
-                  style={styles.eyeButton}
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <Circle
-                      cx="12"
-                      cy="12"
-                      r="12"
-                      fill={COLORS.primary}
-                      opacity="0.1"
-                    />
-                    <Path
-                      d={showPassword 
-                        ? "M12 6c-4.5 0-8.2 3-9.5 7 1.3 4 5 7 9.5 7s8.2-3 9.5-7c-1.3-4-5-7-9.5-7zm0 11.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5-2 4.5-4.5 4.5zm0-7.2c-1.5 0-2.7 1.2-2.7 2.7s1.2 2.7 2.7 2.7 2.7-1.2 2.7-2.7-1.2-2.7-2.7-2.7z"
-                        : "M12 6c-4.5 0-8.2 3-9.5 7 1.3 4 5 7 9.5 7s8.2-3 9.5-7c-1.3-4-5-7-9.5-7zm0 11.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5-2 4.5-4.5 4.5z"}
-                      fill={COLORS.primary}
-                    />
-                    {!showPassword && (
-                      <Path
-                        d="M4 4L20 20"
-                        stroke={COLORS.primary}
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                      />
-                    )}
-                  </Svg>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <CustomButton
-              title={isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
-              onPress={handleAuth}
-              style={styles.loginButton}
-            />
-          </Animated.View>
-          
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchText}>
-              {isLogin ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?'}
-            </Text>
-            <TouchableOpacity onPress={() => animateTransition(!isLogin)}>
-              <Text style={styles.switchButton}>
-                {isLogin ? 'Kayıt Olun' : 'Giriş Yapın'}
-              </Text>
-            </TouchableOpacity>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.headerContainer}>
+            <Animated.View style={[
+              styles.logoContainer, 
+              isDarkMode && styles.darkLogoContainer,
+              { transform: [{ scale: animation }] }
+            ]}>
+              <ParkingLogo width={width * 0.4} height={width * 0.4} />
+            </Animated.View>
+            <Text style={[styles.appName, isDarkMode && styles.darkText]}>Park Yerim</Text>
+            <Text style={[styles.slogan, isDarkMode && styles.darkSecondaryText]}>Aracınızı Güvenle Park Edin</Text>
           </View>
-        </View>
+
+          <View style={[styles.formContainer, isDarkMode && styles.darkFormContainer]}>
+            <Animated.View style={{
+              opacity: fadeAnim,
+              transform: [{ translateX: slideAnim }]
+            }}>
+              <Text style={[styles.title, isDarkMode && styles.darkText]}>
+                {isLogin ? 'Tekrar Hoşgeldiniz' : 'Bize Katılın'}
+              </Text>
+              
+              {errorMessage ? (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={20} color={COLORS.error} />
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+              
+              <View style={styles.inputContainer}>
+                {!isLogin && (
+                  <>
+                    <CustomInput
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      placeholder="Ad"
+                      autoCapitalize="words"
+                      icon="person-outline"
+                      darkMode={isDarkMode}
+                    />
+                    <CustomInput
+                      value={lastName}
+                      onChangeText={setLastName}
+                      placeholder="Soyad"
+                      autoCapitalize="words"
+                      icon="person-outline"
+                      darkMode={isDarkMode}
+                    />
+                  </>
+                )}
+                
+                <CustomInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="E-posta"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  icon="mail-outline"
+                  darkMode={isDarkMode}
+                />
+                
+                <View style={[styles.passwordContainer, isDarkMode && styles.darkPasswordContainer]}>
+                  <CustomInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Şifre"
+                    secureTextEntry={!showPassword}
+                    style={styles.passwordInput}
+                    icon="lock-closed-outline"
+                    darkMode={isDarkMode}
+                  />
+                  <TouchableOpacity 
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons 
+                      name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                      size={22} 
+                      color={isDarkMode ? COLORS.white : COLORS.text.secondary} 
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <CustomButton
+                title={isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
+                onPress={handleAuth}
+                style={styles.loginButton}
+                loading={isLoading}
+                disabled={isLoading}
+              />
+            </Animated.View>
+            
+            <View style={styles.switchContainer}>
+              <Text style={[styles.switchText, isDarkMode && styles.darkSecondaryText]}>
+                {isLogin ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?'}
+              </Text>
+              <TouchableOpacity onPress={() => animateTransition(!isLogin)}>
+                <Text style={[styles.switchButton, isDarkMode && styles.darkActionText]}>
+                  {isLogin ? 'Kayıt Olun' : 'Giriş Yapın'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -290,6 +348,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  darkContainer: {
+    backgroundColor: '#121212',
   },
   backgroundPattern: {
     position: 'absolute',
@@ -304,10 +365,15 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
+    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: SPACING.xlarge,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: '15%',
+    paddingBottom: SPACING.xlarge,
   },
   headerContainer: {
     alignItems: 'center',
@@ -326,6 +392,11 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.15,
     shadowRadius: 6,
+  },
+  darkLogoContainer: {
+    backgroundColor: '#1a1a1a',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
   },
   appName: {
     fontSize: FONTS.sizes.large,
@@ -359,39 +430,51 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     transform: [{ translateY: -SPACING.xlarge }],
   },
+  darkFormContainer: {
+    backgroundColor: 'rgba(42, 42, 42, 0.95)',
+    shadowColor: '#000',
+  },
   title: {
     fontSize: FONTS.sizes.subtitle,
     fontWeight: FONTS.weights.bold,
     color: COLORS.text.primary,
-    marginBottom: SPACING.xlarge,
+    marginBottom: SPACING.large,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 87, 87, 0.1)',
+    borderRadius: 8,
+    padding: SPACING.medium,
+    marginBottom: SPACING.medium,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: FONTS.sizes.small,
+    marginLeft: SPACING.small,
+    flex: 1,
+  },
   inputContainer: {
-    marginBottom: SPACING.large,
+    marginBottom: SPACING.medium,
   },
   passwordContainer: {
     position: 'relative',
     width: '100%',
-    marginBottom: SPACING.large,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    overflow: 'hidden',
+    marginBottom: SPACING.small,
+  },
+  darkPasswordContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   passwordInput: {
     paddingRight: 50,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    backgroundColor: 'transparent',
-    fontSize: FONTS.sizes.regular,
-    color: COLORS.text.primary,
-    height: 50,
   },
   eyeButton: {
     position: 'absolute',
     right: 12,
     top: '50%',
-    transform: [{ translateY: -28 }],
+    transform: [{ translateY: -26 }],
     padding: 8,
     borderRadius: 24,
     backgroundColor: 'transparent',
@@ -419,5 +502,14 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.regular,
     fontWeight: FONTS.weights.semiBold,
     textDecorationLine: 'underline',
+  },
+  darkText: {
+    color: COLORS.white,
+  },
+  darkSecondaryText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  darkActionText: {
+    color: COLORS.primary,
   },
 }); 

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { TextInput, StyleSheet, Animated } from 'react-native';
+import { TextInput, StyleSheet, Animated, View } from 'react-native';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function CustomInput({ style, ...props }) {
+export default function CustomInput({ style, icon, darkMode, ...props }) {
   const [focused, setFocused] = useState(false);
   const [animation] = useState(new Animated.Value(0));
 
@@ -35,23 +36,37 @@ export default function CustomInput({ style, ...props }) {
     }],
     borderColor: animation.interpolate({
       inputRange: [0, 1],
-      outputRange: [COLORS.shadow, COLORS.primary]
+      outputRange: [darkMode ? 'rgba(255, 255, 255, 0.1)' : COLORS.shadow, COLORS.primary]
     }),
     shadowOpacity: animation.interpolate({
       inputRange: [0, 1],
-      outputRange: [0.1, 0.25]
+      outputRange: [darkMode ? 0.2 : 0.1, 0.25]
     }),
     backgroundColor: animation.interpolate({
       inputRange: [0, 1],
-      outputRange: [COLORS.white, COLORS.background]
+      outputRange: [darkMode ? 'rgba(255, 255, 255, 0.05)' : COLORS.white, darkMode ? 'rgba(255, 255, 255, 0.1)' : COLORS.background]
     })
   };
 
   return (
-    <Animated.View style={[styles.inputWrapper, animatedStyle]}>
+    <Animated.View style={[styles.inputWrapper, animatedStyle, darkMode && styles.darkInputWrapper]}>
+      {icon && (
+        <View style={styles.iconContainer}>
+          <Ionicons 
+            name={icon} 
+            size={20} 
+            color={focused ? COLORS.primary : darkMode ? 'rgba(255, 255, 255, 0.7)' : COLORS.text.secondary} 
+          />
+        </View>
+      )}
       <TextInput
-        style={[styles.input, style]}
-        placeholderTextColor={COLORS.text.secondary}
+        style={[
+          styles.input, 
+          icon && styles.inputWithIcon,
+          darkMode && styles.darkInput,
+          style
+        ]}
+        placeholderTextColor={darkMode ? 'rgba(255, 255, 255, 0.5)' : COLORS.text.secondary}
         onFocus={handleFocus}
         onBlur={handleBlur}
         selectionColor={COLORS.primary}
@@ -75,13 +90,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  darkInputWrapper: {
+    shadowColor: '#000',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  iconContainer: {
+    paddingLeft: SPACING.large,
   },
   input: {
-    width: '100%',
+    flex: 1,
     paddingHorizontal: SPACING.large,
     paddingVertical: SPACING.medium,
     fontSize: FONTS.sizes.regular,
     color: COLORS.text.primary,
     fontFamily: 'System',
+  },
+  inputWithIcon: {
+    paddingLeft: SPACING.small,
+  },
+  darkInput: {
+    color: COLORS.white,
   },
 }); 
