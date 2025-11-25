@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,19 +19,19 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.myparking",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.emrehaksever.myparking"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon.png"
     },
-    "plugins": [
-      "@react-native-firebase/app"
-    ],
     "newArchEnabled": true,
-    "assets": ["./assets"]
+    "extra": {
+      "eas": {
+        "projectId": "52ed24d5-7363-4afb-a0d1-4ca1cf490cb5"
+      }
+    }
   }
 }

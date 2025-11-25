@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import Navigation from './src/navigation';
+import { SafeAreaView } from 'react-native-safe-area-context'; // <-- BU MODERN
 import { ThemeProvider } from './src/context/ThemeContext';
 import { loadSavedNotificationTimers } from './src/services/notificationService';
 
